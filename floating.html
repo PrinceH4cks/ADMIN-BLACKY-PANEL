@@ -287,12 +287,12 @@
                         <input type="text" id="fbTargetPath" placeholder="Android/data/com.dts.freefireth/files">
                     </div>
                     <div class="fb-urlfield on">
-                        <label>ON URL <span class="mini-tag">ZIP</span></label>
-                        <input type="text" id="fbOnUrl" placeholder="https://.../on.zip">
+                        <label>ON FILE <span class="mini-tag">ZIP · GITHUB</span></label>
+                        <select id="fbOnUrl" class="zip-select"><option value="">Loading ZIP files...</option></select>
                     </div>
                     <div class="fb-urlfield off">
-                        <label>OFF URL <span class="mini-tag">ZIP</span></label>
-                        <input type="text" id="fbOffUrl" placeholder="https://.../off.zip">
+                        <label>OFF FILE <span class="mini-tag">ZIP · GITHUB</span></label>
+                        <select id="fbOffUrl" class="zip-select"><option value="">Loading ZIP files...</option></select>
                     </div>
                     <div class="fb-saveholder">
                         <button class="btn fb-save-btn" onclick="addFloatingButton()"><svg class="svg-ic" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> ADD BUTTON</button>
@@ -406,6 +406,7 @@ function applyAdminChip() {
             window.adminEmailAddr = user.email;
             applyAdminChip();
             loadFloatingButtons();
+            loadZipOptions();
         });
 
         document.getElementById("logoutBtn").addEventListener("click", function() {
@@ -571,8 +572,8 @@ const item = document.createElement("div");
                         '<div style="min-width:0; flex:1;">' +
                         '<div class="fb-name-row"><span class="pos-badge">#' + pos + '</span><span class="t1" style="font-size:14px;">' + esc(d.name || "Untitled") + '</span>' + st + '</div>' +
                         '<div class="url-box"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>PATH: ' + esc(d.targetPath || "Android/data/com.dts.freefireth/files") + '</div>' +
-                        '<div class="url-box"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>ON: ' + esc(d.onUrl || d.url || "No URL") + '</div>' +
-                        '<div class="url-box"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>OFF: ' + esc(d.offUrl || "No URL") + '</div></div>' +
+                        '<div class="url-box"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>ON: ' + esc(zipDisplay(d.onUrl || d.url)) + '</div>' +
+                        '<div class="url-box"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>OFF: ' + esc(zipDisplay(d.offUrl)) + '</div></div>' +
                         '<label class="switch" title="Toggle ON / OFF"><input type="checkbox" ' + (isOn ? 'checked' : '') + ' onchange="toggleFloatingButton(\'' + jsStr(key) + '\')"><span class="slider"></span></label>' +
                         '</div>' +
                         '<div class="actions">' +
@@ -624,6 +625,88 @@ function applyFpButton(enabled) {
         }
         window.savePanelToggle = savePanelToggle;
 
+        /* ---------- GitHub mods/ ZIP list — sirf dropdown ke liye ---------- */
+        let ghZipFiles = [];   // [{ name, url, note }]
+
+        function getGhNotes() {
+            try { return JSON.parse(localStorage.getItem("gh_display_names") || "{}") || {}; }
+            catch (e) { return {}; }
+        }
+
+        function zipLabel(f) {
+            return f.note ? f.note + "  ·  " + f.name : f.name;
+        }
+
+        function zipLabelFor(url) {
+            if (!url) return "";
+            for (var i = 0; i < ghZipFiles.length; i++) {
+                if (ghZipFiles[i].url === url) return zipLabel(ghZipFiles[i]);
+            }
+            return "";
+        }
+        window.zipLabelFor = zipLabelFor;
+
+        // List me kabhi raw link mat dikhao — sirf file naam
+        function zipDisplay(url) {
+            if (!url) return "No ZIP selected";
+            const lbl = zipLabelFor(url);
+            if (lbl) return lbl;
+            return ghZipFiles.length ? "(file repo me ab nahi hai)" : "…";
+        }
+        window.zipDisplay = zipDisplay;
+
+        function populateZipSelects(root) {
+            const scope = root || document;
+            scope.querySelectorAll(".zip-select").forEach(function(sel) {
+                const prev = sel.getAttribute("data-prev") || "";
+                sel.innerHTML = "";
+                const ph = document.createElement("option");
+                ph.value = "";
+                ph.textContent = ghZipFiles.length
+                    ? "— Select ZIP (" + ghZipFiles.length + " files) —"
+                    : "No ZIP files — Panel Upload me upload karo";
+                sel.appendChild(ph);
+                ghZipFiles.forEach(function(f) {
+                    const o = document.createElement("option");
+                    o.value = f.url;
+                    o.textContent = zipLabel(f);
+                    sel.appendChild(o);
+                });
+                if (prev) {
+                    let has = false;
+                    for (let i = 0; i < sel.options.length; i++) if (sel.options[i].value === prev) { has = true; break; }
+                    if (!has) {
+                        const o = document.createElement("option");
+                        o.value = prev;
+                        o.textContent = "(saved file — repo me ab nahi hai)";
+                        sel.appendChild(o);
+                    }
+                    sel.value = prev;
+                }
+            });
+        }
+        window.populateZipSelects = populateZipSelects;
+
+        function loadZipOptions() {
+            get(ref(db, "panelSettings/github")).then(function(snap) {
+                const s = snap.val() || {};
+                if (!s.token || !s.owner || !s.repo) { ghZipFiles = []; populateZipSelects(); return; }
+                const url = "https://api.github.com/repos/" + encodeURIComponent(s.owner) + "/" + encodeURIComponent(s.repo) + "/contents/" + encodeURIComponent("mods");
+                fetch(url, { headers: { "Authorization": "Bearer " + s.token, "Accept": "application/vnd.github+json" } })
+                    .then(function(res) { return res.ok ? res.json() : null; })
+                    .then(function(data) {
+                        const notes = getGhNotes();
+                        ghZipFiles = (Array.isArray(data) ? data : [])
+                            .filter(function(f) { return f.type === "file" && /\.zip$/i.test(f.name); })
+                            .map(function(f) { return { name: f.name, url: f.download_url || "", note: notes[f.name] || "" }; });
+                        populateZipSelects();
+                        loadFloatingButtons(); // list par file names dikhane ke liye refresh
+                    })
+                    .catch(function() { ghZipFiles = []; populateZipSelects(); });
+            }).catch(function() {});
+        }
+        window.loadZipOptions = loadZipOptions;
+
 function addFloatingButton() {
             const name = document.getElementById("fbNameInput").value.trim();
             const targetPath = document.getElementById("fbTargetPath").value.trim();
@@ -631,8 +714,8 @@ function addFloatingButton() {
             const offUrl = document.getElementById("fbOffUrl").value.trim();
             const icon = document.getElementById("fbIconInput").value.trim() || "✔";
             if (!name) { showToast("Button name is required!", true); return; }
-            if (!onUrl) { showToast("ON ZIP URL is required!", true); return; }
-            if (!offUrl) { showToast("OFF ZIP URL is required!", true); return; }
+            if (!onUrl) { showToast("ON file select karo (dropdown)!", true); return; }
+            if (!offUrl) { showToast("OFF file select karo (dropdown)!", true); return; }
             const newRef = push(ref(db, "floatingButtons/buttons"));
             set(newRef, { name: name, targetPath: targetPath, onUrl: onUrl, offUrl: offUrl, icon: icon, enabled: true, order: Date.now() })
                 .then(function() {
@@ -671,12 +754,13 @@ function addFloatingButton() {
 '<div class="form-row"><div><label>Button Name</label><textarea id="mFbName" rows="2">' + esc(data.name) + '</textarea></div></div>' +
                     '<div class="form-row"><div><label>Button Icon</label><input type="text" id="mFbIcon" maxlength="4" value="' + esc(data.icon || "✔") + '"></div></div>' +
                     '<div class="form-row"><div><label>Target Path (Destination)</label><input type="text" id="mFbTargetPath" placeholder="Android/data/com.dts.freefireth/files" value="' + esc(data.targetPath || "") + '"></div></div>' +
-                    '<div class="form-row"><div><label>ON URL (ZIP)</label><input type="text" id="mFbOnUrl" value="' + esc(data.onUrl || data.url || "") + '"></div></div>' +
-                    '<div class="form-row"><div><label>OFF URL (ZIP)</label><input type="text" id="mFbOffUrl" value="' + esc(data.offUrl || "") + '"></div></div>' +
+                    '<div class="form-row"><div><label>ON FILE (ZIP)</label><select id="mFbOnUrl" class="zip-select" data-prev="' + esc(data.onUrl || data.url || "") + '"><option value="">— Select ZIP —</option></select></div></div>' +
+                    '<div class="form-row"><div><label>OFF FILE (ZIP)</label><select id="mFbOffUrl" class="zip-select" data-prev="' + esc(data.offUrl || "") + '"><option value="">— Select ZIP —</option></select></div></div>' +
                     '<div style="display: flex; gap: 10px; justify-content: flex-end;">' +
                     '<button class="btn btn-red btn-small" onclick="closeModal()">CANCEL</button>' +
                     '<button class="btn btn-small" onclick="saveFloatingButtonEdit(\'' + jsStr(key) + '\')">SAVE</button></div>';
                 document.getElementById("modalOverlay").classList.add("show");
+                populateZipSelects(document.getElementById("modalBody"));
             });
         }
         window.editFloatingButton = editFloatingButton;
@@ -688,8 +772,8 @@ function addFloatingButton() {
             const offUrl = document.getElementById("mFbOffUrl").value.trim();
             const icon = document.getElementById("mFbIcon").value.trim() || "✔";
             if (!name) { showToast("Button name is required!", true); return; }
-            if (!onUrl) { showToast("ON ZIP URL is required!", true); return; }
-            if (!offUrl) { showToast("OFF ZIP URL is required!", true); return; }
+            if (!onUrl) { showToast("ON file select karo (dropdown)!", true); return; }
+            if (!offUrl) { showToast("OFF file select karo (dropdown)!", true); return; }
             update(ref(db, "floatingButtons/buttons/" + key), { name: name, targetPath: targetPath, onUrl: onUrl, offUrl: offUrl, icon: icon })
                 .then(function() {
                     showToast("Button updated!");

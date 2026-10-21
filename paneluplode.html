@@ -204,7 +204,7 @@
         <div class="hero-card">
             <div>
                 <div class="hero-title"><svg class="svg-ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#22d3ee" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg> Panel Upload <span id="upStatusLbl" style="font-size:12px; padding:3px 12px; border-radius:999px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.35); color:#f87171; letter-spacing:1px;">NO REPO</span></div>
-                <div class="hero-sub">Upload your mod ZIP files to the GitHub <b>mods</b> folder. Every upload makes a direct link — copy it and paste it in the Floating Buttons ON / OFF URL.</div>
+                <div class="hero-sub">Upload your mod ZIP files to the GitHub <b>mods</b> folder. Yahan link nahi milta — <b>Floating Buttons</b> page par file dropdown se select karke button me laga do.</div>
             </div>
         </div>
 
@@ -295,7 +295,6 @@
         window.set = set;
 
         const GH_MAX_BYTES = 100 * 1024 * 1024;
-        let lastUploadUrl = "";
 
         function showToast(msg, isError) {
             const toast = document.getElementById("toast");
@@ -661,11 +660,8 @@
                 try { data = JSON.parse(raw || "{}"); } catch (err) {}
                 const st = xhr.status;
                 if (st >= 200 && st < 300) {
-                    const c = data && data.content;
-                    const dl = (c && c.download_url) || (data && data.download_url) || "";
                     hideProgress();
-                    lastUploadUrl = dl;
-                    showSuccessBox(dl, filename);
+                    showSuccessBox(filename);
                     listFiles();
                     return;
                 }
@@ -707,54 +703,19 @@
             } catch (e) { return s; }
         }
 
-        function showSuccessBox(link, filename) {
-            if (!link) {
-                setGhStatus("upStatus", "Uploaded, but could not get the link. Check the file in the repo.", true);
-                return;
-            }
+        function showSuccessBox(filename) {
             const nameInput = document.getElementById("ghNameInput");
             const note = nameInput ? nameInput.value.trim() : "";
             if (note) {
                 setNameFor(filename, note);
                 if (nameInput) nameInput.value = "";
             }
-            setGhStatus("upStatus", "Uploaded! Link is ready:", true);
+            setGhStatus("upStatus", "Uploaded! " + filename + " — ab Floating Buttons me se select kar lo.", true);
             document.getElementById("upLinkBox").innerHTML =
-                '<div class="url-box" style="margin-top:8px;">' + esc(link) + '</div>' +
-                '<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">' +
-                '<button class="btn btn-small" onclick="copyUploadLink()"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> COPY LINK</button>' +
-                '<button class="btn btn-ghost btn-small" onclick="window.open(\'' + escapeJs(link) + '\',\'_blank\')"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg> OPEN</button>' +
-                '</div>';
+                '<div class="field-hint" style="margin-top:8px;">✅ <b>' + esc(filename) + '</b> <b>mods/</b> folder me save ho gaya. Link yahan nahi milega — <b>Floating Buttons</b> page par ON / OFF dropdown me se ye file select kar lo.</div>';
             showToast(filename + " uploaded!");
         }
         window.showSuccessBox = showSuccessBox;
-
-        function copyUploadLink() {
-            if (!lastUploadUrl) return;
-            copyText(lastUploadUrl, "Link copied!");
-        }
-        window.copyUploadLink = copyUploadLink;
-
-        function copyText(text, okMsg) {
-            function fallback() {
-                const ta = document.createElement("textarea");
-                ta.value = text;
-                ta.style.position = "fixed";
-                ta.style.opacity = "0";
-                document.body.appendChild(ta);
-                ta.select();
-                try { document.execCommand("copy"); showToast(okMsg || "Copied!"); }
-                catch (e) { showToast("Copy failed!", true); }
-                document.body.removeChild(ta);
-            }
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(function() {
-                    showToast(okMsg || "Copied!");
-                }).catch(fallback);
-            } else {
-                fallback();
-            }
-        }
 
         function fmtBytes(n) {
             if (!n && n !== 0) return "";
@@ -838,14 +799,11 @@ function renderFiles(files, list) {
                     '<div class="fb-name-row" style="gap:8px; cursor:pointer;" title="Tap to set display name" onclick="editFileNote(\'' + escapeJs(f.name) + '\')">' +
                     (note ? '<span style="display:inline-block; font-size:11px; font-weight:800; padding:2px 9px; border-radius:999px; background:rgba(34,211,238,0.12); border:1px solid rgba(34,211,238,0.35); color:#22d3ee; letter-spacing:0.5px;">' + esc(note) + ' ✎</span>' : '') +
                     '<span class="t1" style="font-size:14px; word-break:break-all;">' + esc(f.name) + '</span></div>' +
-                    '<div class="url-box" style="word-break:break-all;">' + esc(f.download_url || "") + '</div>' +
-                    '<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">' + fmtBytes(f.size) + ' &nbsp;•&nbsp; updated ' + (f.updated_at ? new Date(f.updated_at).toLocaleDateString() : "?") + '</div>' +
+                    '<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">' + fmtBytes(f.size) + ' &nbsp;•&nbsp; updated ' + (f.updated_at ? new Date(f.updated_at).toLocaleDateString() : "?") + ' &nbsp;•&nbsp; Floating Buttons dropdown me available</div>' +
                     '</div>' +
                     '</div>' +
                     '<div class="actions">' +
-                    '<button class="btn btn-small" onclick="copyFileLink(\'' + escapeJs(f.download_url || "") + '\')"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> COPY</button>' +
                     '<button class="btn btn-small" title="Set display name" onclick="editFileNote(\'' + escapeJs(f.name) + '\')"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> EDIT</button>' +
-                    '<button class="btn btn-ghost btn-small" onclick="window.open(\'' + escapeJs(f.download_url || "") + '\',\'_blank\')"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg> OPEN</button>' +
                     '<button class="btn btn-red btn-small" onclick="askDeleteFile(\'' + escapeJs(f.name) + '\')"><svg class="svg-ic" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> DELETE</button>' +
                     '</div>';
                 list.appendChild(item);
@@ -888,12 +846,6 @@ function renderFiles(files, list) {
             showToast("Name removed.");
         }
         window.clearFileNote = clearFileNote;
-
-        function copyFileLink(link) {
-            if (!link) { showToast("No link!", true); return; }
-            copyText(link, "Link copied!");
-        }
-        window.copyFileLink = copyFileLink;
 
         function askDeleteFile(name) {
             const s = getGhSettings();
