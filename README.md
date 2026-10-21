@@ -1,4 +1,4 @@
-# GANDU PANEL — Admin Panel
+# BLACKY PANEL — Admin Panel
 
 Admin control panel for the mod app. Manage user keys, floating panel buttons, GitHub mod uploads, notifications and site settings from one place.
 
